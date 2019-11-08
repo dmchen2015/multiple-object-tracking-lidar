@@ -44,62 +44,62 @@ using namespace cv;
 
 ros::Publisher objID_pub;
 
-    // KF init
-    int stateDim=4;// [x,y,v_x,v_y]//,w,h]
-    int measDim=2;// [z_x,z_y,z_w,z_h]
-    int ctrlDim=0;
-    cv::KalmanFilter KF0(stateDim,measDim,ctrlDim,CV_32F);
-    cv::KalmanFilter KF1(stateDim,measDim,ctrlDim,CV_32F);
-    cv::KalmanFilter KF2(stateDim,measDim,ctrlDim,CV_32F);
-    cv::KalmanFilter KF3(stateDim,measDim,ctrlDim,CV_32F);
-    cv::KalmanFilter KF4(stateDim,measDim,ctrlDim,CV_32F);
-    cv::KalmanFilter KF5(stateDim,measDim,ctrlDim,CV_32F);
+// KF init
+int stateDim=4;// [x,y,v_x,v_y]//,w,h]
+int measDim=2;// [z_x,z_y,z_w,z_h]
+int ctrlDim=0;
+cv::KalmanFilter KF0(stateDim,measDim,ctrlDim,CV_32F);
+cv::KalmanFilter KF1(stateDim,measDim,ctrlDim,CV_32F);
+cv::KalmanFilter KF2(stateDim,measDim,ctrlDim,CV_32F);
+cv::KalmanFilter KF3(stateDim,measDim,ctrlDim,CV_32F);
+cv::KalmanFilter KF4(stateDim,measDim,ctrlDim,CV_32F);
+cv::KalmanFilter KF5(stateDim,measDim,ctrlDim,CV_32F);
 
-    ros::Publisher pub_cluster0;
-    ros::Publisher pub_cluster1;
-    ros::Publisher pub_cluster2;
-    ros::Publisher pub_cluster3;
-    ros::Publisher pub_cluster4;
-    ros::Publisher pub_cluster5;
+ros::Publisher pub_cluster0;
+ros::Publisher pub_cluster1;
+ros::Publisher pub_cluster2;
+ros::Publisher pub_cluster3;
+ros::Publisher pub_cluster4;
+ros::Publisher pub_cluster5;
 
-    ros::Publisher markerPub;
+ros::Publisher clusterCentroidPub;
+ros::Publisher markerPub;
+std::vector<geometry_msgs::Point> prevClusterCenters;
 
-    std::vector<geometry_msgs::Point> prevClusterCenters;
 
+cv::Mat state(stateDim,1,CV_32F);
+cv::Mat_<float> measurement(2,1); 
 
-    cv::Mat state(stateDim,1,CV_32F);
-    cv::Mat_<float> measurement(2,1); 
-
-    std::vector<int> objID;// Output of the data association using KF
-   // measurement.setTo(Scalar(0));
+std::vector<int> objID;// Output of the data association using KF
+// measurement.setTo(Scalar(0));
 
 bool firstFrame=true;
 
 // calculate euclidean distance of two points
-  double euclidean_distance(geometry_msgs::Point& p1, geometry_msgs::Point& p2)
-  {
-    return sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y) + (p1.z - p2.z) * (p1.z - p2.z));
-  }
+double euclidean_distance(geometry_msgs::Point& p1, geometry_msgs::Point& p2)
+{
+  return sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y) + (p1.z - p2.z) * (p1.z - p2.z));
+}
 /*
 //Count unique object IDs. just to make sure same ID has not been assigned to two KF_Trackers.  
 int countIDs(vector<int> v)
 {
-    transform(v.begin(), v.end(), v.begin(), abs); // O(n) where n = distance(v.end(), v.begin())
-    sort(v.begin(), v.end()); // Average case O(n log n), worst case O(n^2) (usually implemented as quicksort.
-    // To guarantee worst case O(n log n) replace with make_heap, then sort_heap.
+transform(v.begin(), v.end(), v.begin(), abs); // O(n) where n = distance(v.end(), v.begin())
+sort(v.begin(), v.end()); // Average case O(n log n), worst case O(n^2) (usually implemented as quicksort.
+// To guarantee worst case O(n log n) replace with make_heap, then sort_heap.
 
-    // Unique will take a sorted range, and move things around to get duplicated
-    // items to the back and returns an iterator to the end of the unique section of the range
-    auto unique_end = unique(v.begin(), v.end()); // Again n comparisons
-    return distance(unique_end, v.begin()); // Constant time for random access iterators (like vector's)
+// Unique will take a sorted range, and move things around to get duplicated
+// items to the back and returns an iterator to the end of the unique section of the range
+auto unique_end = unique(v.begin(), v.end()); // Again n comparisons
+return distance(unique_end, v.begin()); // Constant time for random access iterators (like vector's)
 }
 */
 
-/*
+ /*
 
-objID: vector containing the IDs of the clusters that should be associated with each KF_Tracker
-objID[0] corresponds to KFT0, objID[1] corresponds to KFT1 etc.
-*/
+   objID: vector containing the IDs of the clusters that should be associated with each KF_Tracker
+   objID[0] corresponds to KFT0, objID[1] corresponds to KFT1 etc.
+ */
 
 std::pair<int,int> findIndexOfMin(std::vector<std::vector<float> > distMat)
 {
@@ -635,6 +635,7 @@ else
    // cout<<"6 clusters initialized\n";
 
     //cc_pos.publish(cc);// Publish cluster mid-points.
+    clusterCentroidPub.publish(cc);
     KFT(cc);
     int i=0;
     bool publishedCluster[6];
@@ -728,9 +729,11 @@ cout<<"About to setup callback\n";
     objID_pub = nh.advertise<std_msgs::Int32MultiArray>("obj_id", 1);
 /* Point cloud clustering
 */
+
     
-  //cc_pos=nh.advertise<std_msgs::Float32MultiArray>("ccs",100);//clusterCenter1
-  markerPub= nh.advertise<visualization_msgs::MarkerArray> ("viz",1);
+    //cc_pos=nh.advertise<std_msgs::Float32MultiArray>("ccs",100);//clusterCenter1
+    clusterCentroidPub = nh.advertise<std_msgs::Float32MultiArray>("ClusterCentroids", 1);
+    markerPub= nh.advertise<visualization_msgs::MarkerArray> ("viz",1);
 
 /* Point cloud clustering
 */    
