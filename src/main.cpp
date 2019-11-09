@@ -240,9 +240,9 @@ void KFT(const std_msgs::Float32MultiArray ccs)
     */
 
     visualization_msgs::MarkerArray clusterMarkers;
-
-     for (int i=0;i<6;i++)
-     {
+    std_msgs::Float32MultiArray cluster_c;
+    for (int i=0;i<6;i++)
+      {
         visualization_msgs::Marker m;
 
         m.id=i;
@@ -255,20 +255,21 @@ void KFT(const std_msgs::Float32MultiArray ccs)
         m.color.g=i%3?1:0;
         m.color.b=i%4?1:0;
 
-       //geometry_msgs::Point clusterC(clusterCenters.at(objID[i]));
+	//geometry_msgs::Point clusterC(clusterCenters.at(objID[i]));
         geometry_msgs::Point clusterC(KFpredictions[i]);
-       m.pose.position.x=clusterC.x;
-       m.pose.position.y=clusterC.y;
-       m.pose.position.z=clusterC.z;
+	m.pose.position.x=clusterC.x;
+	m.pose.position.y=clusterC.y;
+	m.pose.position.z=clusterC.z;
 
-       clusterMarkers.markers.push_back(m);
-     }
+	cluster_c.data.push_back(clusterC.x);
+	cluster_c.data.push_back(clusterC.y);
+	cluster_c.data.push_back(clusterC.z);
+	clusterMarkers.markers.push_back(m);
+      }
 
     prevClusterCenters=clusterCenters;
-
-     markerPub.publish(clusterMarkers);
-
-
+    clusterCentroidPub.publish(cluster_c);
+    markerPub.publish(clusterMarkers);
 
 
     std_msgs::Int32MultiArray obj_id;
@@ -624,22 +625,22 @@ else
     }
 
 
-    std_msgs::Float32MultiArray cc;
-    for(int i=0;i<6;i++)
-    {
-        cc.data.push_back(clusterCentroids.at(i).x);
-        cc.data.push_back(clusterCentroids.at(i).y);
-        cc.data.push_back(clusterCentroids.at(i).z);    
+     std_msgs::Float32MultiArray cc;
+     for(int i=0;i<6;i++)
+       {
+       cc.data.push_back(clusterCentroids.at(i).x);
+         cc.data.push_back(clusterCentroids.at(i).y);
+         cc.data.push_back(clusterCentroids.at(i).z);    
 
-    }
-   // cout<<"6 clusters initialized\n";
+     }
+     // cout<<"6 clusters initialized\n";
 
-    //cc_pos.publish(cc);// Publish cluster mid-points.
-    clusterCentroidPub.publish(cc);
-    KFT(cc);
-    int i=0;
-    bool publishedCluster[6];
-    for(auto it=objID.begin();it!=objID.end();it++)
+     // cc_pos.publish(cc);// Publish cluster mid-points.
+     // clusterCentroidPub.publish(cc);
+     KFT(cc);
+     int i=0;
+     bool publishedCluster[6];
+     for(auto it=objID.begin();it!=objID.end();it++)
         { //cout<<"Inside the for loop\n";
             
         
